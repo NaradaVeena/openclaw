@@ -669,4 +669,25 @@ describe("role-based agent routing", () => {
       expectedMatchedBy: "binding.guild+roles",
     });
   });
+
+  test("preserves case-sensitive Signal group IDs (base64)", () => {
+    const cfg: OpenClawConfig = {};
+    const base64GroupId = "2DiFDrxCeHQQPX3Go0HNSxsDRi5pnKZZkrfCi8e0Vlk=";
+    const route = resolveAgentRoute({
+      cfg,
+      channel: "signal",
+      accountId: "default",
+      peer: { kind: "group", id: base64GroupId },
+    });
+    
+    // The session key should preserve the case of the base64 group ID
+    // but normalize the prefix to lowercase
+    expect(route.sessionKey).toBe(`agent:main:signal:group:${base64GroupId}`);
+    expect(route.agentId).toBe("main");
+    expect(route.matchedBy).toBe("default");
+    
+    // Verify the group ID in the session key is exactly the same as input
+    const sessionKeyParts = route.sessionKey.split(":");
+    expect(sessionKeyParts[4]).toBe(base64GroupId);
+  });
 });
