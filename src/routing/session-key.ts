@@ -138,6 +138,24 @@ export function buildAgentMainSessionKey(params: {
   return `agent:${agentId}:${mainKey}`;
 }
 
+/**
+ * Normalize a peer ID while preserving base64 case sensitivity for Signal groups.
+ * Signal group IDs are base64-encoded and case-sensitive per RFC 4648.
+ */
+function normalizePeerId(peerId: string, channel: string, peerKind: ChatType): string {
+  const trimmed = peerId.trim();
+  if (!trimmed) {
+    return "unknown";
+  }
+  
+  // For Signal groups, preserve case for base64 group IDs
+  if (channel === "signal" && peerKind === "group") {
+    return trimmed;  // Keep original case for Signal group IDs (base64)
+  }
+  
+  return trimmed.toLowerCase();
+}
+
 export function buildAgentPeerSessionKey(params: {
   agentId: string;
   mainKey?: string | undefined;
@@ -150,6 +168,8 @@ export function buildAgentPeerSessionKey(params: {
   dmScope?: "main" | "per-peer" | "per-channel-peer" | "per-account-channel-peer";
 }): string {
   const peerKind = params.peerKind ?? "direct";
+  const channel = (params.channel ?? "").trim().toLowerCase() || "unknown";
+  
   if (peerKind === "direct") {
     const dmScope = params.dmScope ?? "main";
     let peerId = (params.peerId ?? "").trim();
@@ -164,14 +184,12 @@ export function buildAgentPeerSessionKey(params: {
     if (linkedPeerId) {
       peerId = linkedPeerId;
     }
-    peerId = peerId.toLowerCase();
+    peerId = normalizePeerId(peerId, channel, peerKind);
     if (dmScope === "per-account-channel-peer" && peerId) {
-      const channel = (params.channel ?? "").trim().toLowerCase() || "unknown";
       const accountId = normalizeAccountId(params.accountId);
       return `agent:${normalizeAgentId(params.agentId)}:${channel}:${accountId}:direct:${peerId}`;
     }
     if (dmScope === "per-channel-peer" && peerId) {
-      const channel = (params.channel ?? "").trim().toLowerCase() || "unknown";
       return `agent:${normalizeAgentId(params.agentId)}:${channel}:direct:${peerId}`;
     }
     if (dmScope === "per-peer" && peerId) {
@@ -182,8 +200,7 @@ export function buildAgentPeerSessionKey(params: {
       mainKey: params.mainKey,
     });
   }
-  const channel = (params.channel ?? "").trim().toLowerCase() || "unknown";
-  const peerId = ((params.peerId ?? "").trim() || "unknown").toLowerCase();
+  const peerId = normalizePeerId(params.peerId ?? "", channel, peerKind);
   return `agent:${normalizeAgentId(params.agentId)}:${channel}:${peerKind}:${peerId}`;
 }
 
@@ -243,6 +260,38 @@ export function buildGroupHistoryKey(params: {
   const accountId = normalizeAccountId(params.accountId);
   const peerId = params.peerId.trim().toLowerCase() || "unknown";
   return `${channel}:${accountId}:${params.peerKind}:${peerId}`;
+}
+
+/**
+ * Normalize a session key while preserving case-sensitive parts like Signal group IDs.
+ * Signal group IDs are base64-encoded (RFC 4648) and must preserve case.
+ */
+export function normalizeSessionKey(sessionKey: string): string {
+  const trimmed = sessionKey.trim();
+  if (!trimmed) {
+    return "";
+  }
+  
+  // Parse the session key to identify parts
+  const parts = trimmed.split(":");
+  if (parts.length < 3) {
+    return trimmed.toLowerCase();
+  }
+  
+  // Check if this is a Signal group session key
+  // Format: agent:{agentId}:signal:group:{base64GroupId}
+  if (parts.length >= 5 && 
+      parts[0] === "agent" && 
+      parts[2] === "signal" && 
+      parts[3] === "group") {
+    // Preserve the base64 group ID (last part) but normalize the prefix
+    const prefix = parts.slice(0, 4).map(part => part.toLowerCase()).join(":");
+    const groupId = parts.slice(4).join(":"); // Preserve case for group ID
+    return `${prefix}:${groupId}`;
+  }
+  
+  // For all other session keys, lowercase everything
+  return trimmed.toLowerCase();
 }
 
 export function resolveThreadSessionKeys(params: {

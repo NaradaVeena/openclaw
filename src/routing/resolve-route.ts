@@ -11,6 +11,7 @@ import {
   DEFAULT_ACCOUNT_ID,
   DEFAULT_MAIN_KEY,
   normalizeAgentId,
+  normalizeSessionKey,
   sanitizeAgentId,
 } from "./session-key.js";
 
@@ -308,18 +309,18 @@ export function resolveAgentRoute(input: ResolveAgentRouteInput): ResolvedAgentR
 
   const choose = (agentId: string, matchedBy: ResolvedAgentRoute["matchedBy"]) => {
     const resolvedAgentId = pickFirstExistingAgentId(input.cfg, agentId);
-    const sessionKey = buildAgentSessionKey({
+    const sessionKey = normalizeSessionKey(buildAgentSessionKey({
       agentId: resolvedAgentId,
       channel,
       accountId,
       peer,
       dmScope,
       identityLinks,
-    }).toLowerCase();
-    const mainSessionKey = buildAgentMainSessionKey({
+    }));
+    const mainSessionKey = normalizeSessionKey(buildAgentMainSessionKey({
       agentId: resolvedAgentId,
       mainKey: DEFAULT_MAIN_KEY,
-    }).toLowerCase();
+    }));
     return {
       agentId: resolvedAgentId,
       channel,
