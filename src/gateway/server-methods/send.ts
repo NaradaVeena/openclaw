@@ -11,6 +11,7 @@ import {
 import { normalizeReplyPayloadsForDelivery } from "../../infra/outbound/payloads.js";
 import { resolveOutboundTarget } from "../../infra/outbound/targets.js";
 import { normalizePollInput } from "../../polls.js";
+import { normalizeSessionKey } from "../../routing/session-key.js";
 import {
   ErrorCodes,
   errorShape,
@@ -176,7 +177,7 @@ export const sendHandlers: GatewayRequestHandlers = {
         );
         const providedSessionKey =
           typeof request.sessionKey === "string" && request.sessionKey.trim()
-            ? request.sessionKey.trim().toLowerCase()
+            ? normalizeSessionKey(request.sessionKey.trim())
             : undefined;
         const derivedAgentId = resolveSessionAgentId({ config: cfg });
         // If callers omit sessionKey, derive a target session key from the outbound route.
